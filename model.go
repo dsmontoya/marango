@@ -1,0 +1,82 @@
+package marango
+
+import (
+	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
+)
+
+// Model struct represents a collection in MongoDB.
+// It inherits from mgo.Collection and overwrides the functions below to provide more
+// functionality and to create compatibility with Marango.
+type Model struct {
+	*mgo.Collection
+	//C is the underlying mgo.collection value for this model.
+	//Refer to http://godoc.org/labix.org/v2/mgo#Collection for full usage information
+	C *mgo.Collection
+	z *Marango
+}
+
+func newModel(collection *mgo.Collection, z *Marango) *Model {
+	model := &Model{collection, collection, z}
+	return model
+}
+
+// CreateDoc conditions an instance of the model to become a document.
+//
+// What it means in pratical terms is that Create sets a value for the schema's *Marango.Document anonymous field. This will allow Marango to work with the value as a document.
+// Calling this function is only necessary when wishing to create documents "manually".
+// It is not necessary to call this function on a value that will be holding the result of a query; Marango will do that.
+//
+// After a document is created with this function, the document will expose all of the public methods and fields of the Marango.Model struct as its own.
+func (m *Model) CreateDoc(i interface{}) {
+	m.z.CreateDoc(i)
+}
+
+// Find starts and returns a chainable *Query value
+// This function passes the passed value to mgo.Collection.Find
+//
+// To borrow from the mgo docs: "The document(argument) may be a map or a struct value capable of being marshalled with bson.
+// The map may be a generic one using interface{} for its key and/or values, such as bson.M, or it may be a properly typed map.
+// Providing nil as the document is equivalent to providing an empty document such as bson.M{}".
+//
+// Further reading: http://godoc.org/labix.org/v2/mgo#Collection.Find
+func (m *Model) Find(query interface{}) *Query {
+	return &Query{query: query, z: m.z,
+		populate:  make(map[string]*Query),
+		populated: make(map[string]interface{}), c: m.C}
+}
+
+// FindId is a convenience function equivalent to:
+//
+//     query := myModel.Find(bson.M{"_id": id})
+//
+// Unlike the Mgo.Collection.FindId function, this function will accept Id both in hex representation as a string or a bson.ObjectId.
+//
+// FindId will return a chainable *Query value
+func (m *Model) FindId(id interface{}) *Query {
+	return m.Find(bson.M{"_id": getObjectId(id)})
+}
+
+// RemoveId removes a document from the collection based on its _id field.
+// Same as mgo.Collection.RemoveId, except that it accepts the Id as a string or bson.ObjectId
+//
+// See http://godoc.org/labix.org/v2/mgo#Collection.RemoveId
+func (m *Model) RemoveId(id interface{}) error {
+	return m.C.RemoveId(getObjectId(id))
+}
+
+// UpdateId updates a document in the collection based on its _id field.
+// Same as mgo.Collection.UpdateId, except that it accepts the Id as a string or bson.ObjectId
+//
+// See http://godoc.org/labix.org/v2/mgo#Collection.UpdateId
+func (m *Model) UpdateId(id interface{}, change interface{}) error {
+	return m.C.UpdateId(getObjectId(id), change)
+}
+
+// UpsertId updates or inserts a document in the collection based on its _id field.
+// Same as mgo.Collection.UpsertId, except that it accepts the Id as a string or bson.ObjectId
+//
+// See http://godoc.org/labix.org/v2/mgo#Collection.UpsertId
+func (m *Model) UpsertId(id interface{}, change interface{}) (*mgo.ChangeInfo, error) {
+	return m.C.UpsertId(getObjectId(id), change)
+}
