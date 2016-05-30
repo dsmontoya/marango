@@ -6,6 +6,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"reflect"
 	"strings"
+	"errors"
 )
 
 type Query struct {
@@ -265,6 +266,10 @@ func (query *Query) Exec(result interface{}) error {
 			documentCpy.Virtual = newVirtual()
 			documentCpy.Model = query.z.models[structName]
 			modelElem := sliceElem.Elem().FieldByName("Document")
+			if !modelElem.IsValid() {
+				return errors.New(fmt.Sprintf("Can't find marango.Document anonymous composition in %s", structName))
+			}
+			//fmt.Println(sliceElem)
 			modelElem.Set(reflect.ValueOf(documentCpy))
 		}
 		return err
@@ -276,6 +281,9 @@ func (query *Query) Exec(result interface{}) error {
 	document.Model = query.z.models[structName]
 	val := reflect.ValueOf(result).Elem()
 	documentVal := val.FieldByName("Document")
+	if !documentVal.IsValid() {
+		return errors.New(fmt.Sprintf("Can't find marango.Document anonymous composition in %s", structName))
+	}
 	documentVal.Set(reflect.ValueOf(document))
 
 	if err == mgo.ErrNotFound {
